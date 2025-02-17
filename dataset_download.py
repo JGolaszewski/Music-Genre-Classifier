@@ -27,86 +27,74 @@ def wav_to_features(wav_path, n_samples=5):
 
     for t, sample in enumerate(samples):
         y_segment = sample
-        # Cechy chroma (średnia z chroma)
-        chroma = librosa.feature.chroma_stft(y=y_segment, sr=sr, n_fft=512)
-        chroma_mean = np.mean(chroma, axis=1)  # Średnia z chroma dla każdego kanału
-        chroma_diff = np.diff(chroma, axis=1)  # Różnice chroma
-        chroma_std = np.std(chroma, axis=1)  # Odchylenie standardowe chroma
 
-        # Tonacja i ton podstawowy (średnia z tonnetz)
-        tonnetz = librosa.feature.tonnetz(y=y_segment, sr=sr)
-        tonnetz_mean = np.mean(tonnetz, axis=1)
-        tonnetz_std = np.std(tonnetz, axis=1)
-        tonnetz_diff = np.diff(tonnetz, axis=1)
+        # CHROMA
+        chroma = librosa.feature.chroma_stft(y=y_segment, sr=sr, n_fft=512, n_chroma=12).mean(axis=1)
 
-        # Tempogram (średnia z tempogramu)
-        tempogram = librosa.feature.tempogram(y=y_segment, sr=sr)
-        tempogram_mean = np.mean(tempogram)  # Jedna wartość średnia dla tempogramu
+        feature_names.extend([f'chroma_{i+1}_t{t}' for i in range(12)])
+        feature_values.extend(chroma)
 
-        # Zmiana tempa w czasie
-        tempo_changes = np.diff(tempogram, axis=1)  # Różnice w tempogramie
-        tempo_change_mean = np.mean(tempo_changes)
-        tempo_change_std = np.std(tempo_changes)
+        # TONNETZ
+        tonnetz = librosa.feature.tonnetz(y=y_segment, sr=sr).mean(axis=1)
+        feature_names.extend([f'tonnetz_{i+1}_t{t}' for i in range(6)])
+        feature_values.extend(tonnetz)
 
-        # MFCC (średnia z MFCC)
-        mfcc = librosa.feature.mfcc(y=y_segment, sr=sr, n_mfcc=13)
-        mfcc_mean = np.mean(mfcc, axis=1)
-        mfcc_std = np.std(mfcc, axis=1)
-        mfcc_diff = np.diff(mfcc, axis=1)
+        # BPS
+        tempo, _ = librosa.beat.beat_track(y=y_segment, sr=sr)
+        feature_names.append(f'tempo_t{t}')
+        feature_values.append(tempo)
 
-        # Dodawanie cech do listy
-        feature_names += (
-            [f'chroma_diff_t{int(t)}'] +
-            [f'chroma_mean_t{int(t)}'] +
-            [f'chroma_std_t{int(t)}'] +
-            [f'tonnetz_diff_t{int(t)}'] +
-            [f'tonnetz_mean_t{int(t)}'] +
-            [f'tonnetz_std_t{int(t)}'] +
-            [f'mfcc_diff_t{int(t)}'] +
-            [f'mfcc_mean_t{int(t)}'] +
-            [f'mfcc_std_t{int(t)}'] +
-            [f'tempo_mean_t{int(t)}'] +
-            [f'tempo_diff_t{int(t)}'] +
-            [f'tempo_diff_mean_t{int(t)}'] +
-            [f'tempo_diff_std_t{int(t)}']
-        )
+        # RMS
+        rms = librosa.feature.rms(y=y_segment)
+        mean_rms = np.mean(rms)
+        max_rms = np.max(rms)
+        min_rms = np.min(rms)
+        std_rms = np.std(rms)
+        feature_names.extend([f'mean_rms_t{t}', f'max_rms_t{t}', f'min_rms_t{t}',
+                              f'std_rms_t{t}'])
+        feature_values.extend([mean_rms, max_rms, min_rms, std_rms])
 
-        feature_values += (
-            [chroma_diff.mean()] +
-            [chroma_mean.mean()] +
-            [chroma_std.mean()] +
-            [tonnetz_diff.mean()] +
-            [tonnetz_mean.mean()] +
-            [tonnetz_std.mean()] +
-            [mfcc_diff.mean()] +
-            [mfcc_mean.mean()] +
-            [mfcc_std.mean()] +
-            [tempogram_mean] +
-            [np.mean(tempo_changes)] +
-            [tempo_change_mean] +
-            [tempo_change_std]
-        )
+        #ROLL-OFF FREQUENCY
+        rolloff = librosa.feature.spectral_rolloff(y=y_segment, sr=sr)
+        mean_rolloff = np.mean(rolloff)
+        max_rolloff = np.max(rolloff)
+        min_rolloff = np.min(rolloff)
+        std_rolloff = np.std(rolloff)
+        feature_names.extend([f'mean_rolloff_t{t}', f'max_rolloff_t{t}', f'min_rolloff_t{t}',
+                              f'std_rolloff_t{t}'])
+        feature_values.extend([mean_rolloff, max_rolloff, min_rolloff, std_rolloff])
+
+        # ZERO CROSSING RATE
+        zcr = librosa.feature.zero_crossing_rate(y_segment)
+        mean_zcr = np.mean(zcr)
+        max_zcr = np.max(zcr)
+        min_zcr = np.min(zcr)
+        std_zcr = np.std(zcr)
+        feature_names.extend([f'mean_zcr_t{t}', f'max_zcr_t{t}', f'min_zcr_t{t}',
+                              f'std_zcr_t{t}'])
+        feature_values.extend([mean_zcr, max_zcr, min_zcr, std_zcr])
+
+        # MFCC
+        mfcc = librosa.feature.mfcc(y=y_segment, sr=sr, n_mfcc=11).mean(axis=1)
+        feature_names.extend([f'mfcc_{i+1}_t{t}' for i in range(11)])
+        feature_values.extend(mfcc)
 
     # Tworzenie DataFrame
     df = pd.DataFrame([feature_values], columns=feature_names)
     df['genre'] = genre
     df['name'] = name
-
     return df
 
 def process_directory(directory_path, n_samples=5):
     all_features = []
 
-    # Rekursywne przejście przez wszystkie pliki w folderze
     for wav_file in Path(directory_path).rglob('*.wav'):
         print(f"Processing {wav_file}")
         features_df = wav_to_features(wav_file, n_samples)
         all_features.append(features_df)
 
-    # Łączenie wszystkich DataFrame w jeden
     final_df = pd.concat(all_features, ignore_index=True)
 
-    # Zapis do CSV
     output_csv = os.path.join(directory_path, 'all_features.csv')
     final_df.to_csv(output_csv, index=False)
 
