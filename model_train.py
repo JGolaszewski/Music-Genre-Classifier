@@ -1,7 +1,9 @@
 import torch
 import datetime
 
-from model import SpectCNN
+from pyparsing import Combine
+
+from model import SpectCNN, TemporalRNN, CombRNNCNN
 from torchvision import datasets
 
 def main():
@@ -15,18 +17,12 @@ def main():
 
     print(f"Device: {device}")
 
-    cnn = SpectCNN()
-    cnn.load_data(img_folder_root="data/datasets/andradaolteanu/gtzan-dataset-music-genre-classification/versions/1/Data/images_original",
-                  batch_size=4, num_workers=2)
+    spect_path = "data/datasets/andradaolteanu/gtzan-dataset-music-genre-classification/versions/1/Data/images_original"
+    csv_path = "data/datasets/andradaolteanu/gtzan-dataset-music-genre-classification/versions/1/Data/genres_original/all_features.csv"
 
-    print("Training...")
-    cnn.data_train()
-    cnn.data_test()
-
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_path = f"save/model_{timestamp}.pth"
-    torch.save(cnn.state_dict(), model_path)
-    print(f"Model saved to '{model_path}'")
+    combine = CombRNNCNN()
+    combine.load_data(csv_path, spect_path)
+    combine.train_whole()
 
 if __name__ == "__main__":
     main()
