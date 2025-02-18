@@ -42,7 +42,10 @@ def wav_to_features(wav_path, n_samples=5):
         # BPS
         tempo, _ = librosa.beat.beat_track(y=y_segment, sr=sr)
         feature_names.append(f'tempo_t{t}')
-        feature_values.append(tempo)
+        if isinstance(tempo, float):
+            feature_values.append(tempo)
+        else:
+            feature_values.append(tempo[0])
 
         # RMS
         rms = librosa.feature.rms(y=y_segment)
