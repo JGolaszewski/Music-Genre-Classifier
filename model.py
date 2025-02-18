@@ -225,19 +225,41 @@ def main():
             print(f"Validation Accuracy: {val_accuracy:.2f}%")
             model.train()  # Switch back to training mode after validation
 
-    # Function to train the fusion model
+    class FusionDataset(torch.utils.data.Dataset):
+        def __init__(self, cnn_loader, rnn_loader):
+            self.cnn_loader = cnn_loader
+            self.rnn_loader = rnn_loader
+
+        def __len__(self):
+            return min(len(self.cnn_loader.dataset), len(self.rnn_loader.dataset))
+
+        def __getitem__(self, idx):
+            # Pobierz dane z CNN i RNN z tego samego indeksu
+            cnn_data = self.cnn_loader.dataset[idx]
+            rnn_data = self.rnn_loader.dataset[idx]
+
+            cnn_inputs, _ = cnn_data
+            rnn_inputs, labels = rnn_data
+
+            return (cnn_inputs, rnn_inputs), labels
+
+    # W modyfikowanej funkcji `train_fusion_model` używamy tego nowego datasetu
     def train_fusion_model(self, cnn_model, rnn_model, cnn_loader, rnn_loader, criterion, optimizer, num_epochs=10):
-        # Włączenie trybu treningowego dla FusionModel
-        self.train()
-        cnn_model.eval()  # Ustawienie modelu CNN na tryb ewaluacji (brak trenowania)
-        rnn_model.eval()  # Ustawienie modelu RNN na tryb ewaluacji (brak trenowania)
+        # Tworzymy nowy dataset Fusion
+        fusion_dataset = FusionDataset(cnn_loader, rnn_loader)
+        fusion_loader = torch.utils.data.DataLoader(fusion_dataset, batch_size=32, shuffle=False)
+
+        self.train()  # Włączenie trybu treningowego dla FusionModel
+        cnn_model.eval()  # Model CNN w trybie ewaluacji
+        rnn_model.eval()  # Model RNN w trybie ewaluacji
 
         for epoch in range(num_epochs):
             running_loss = 0.0
             correct = 0
             total = 0
 
-            for (cnn_inputs, _), (rnn_inputs, labels) in zip(cnn_loader, rnn_loader):
+            for (cnn_inputs, rnn_inputs), labels in tqdm(fusion_loader,
+                                                         desc=f"Training Epoch {epoch + 1}/{num_epochs}"):
                 optimizer.zero_grad()
 
                 # Uzyskiwanie wyników z modelu CNN i RNN
@@ -256,14 +278,14 @@ def main():
                 correct += (predicted == labels).sum().item()
 
             train_accuracy = 100 * correct / total
-            print(f"Train Loss: {running_loss / len(cnn_loader):.4f}, Train Accuracy: {train_accuracy:.2f}%")
+            print(f"Train Loss: {running_loss / len(fusion_loader):.4f}, Train Accuracy: {train_accuracy:.2f}%")
 
             # Kroki walidacyjne
             self.eval()  # Przełączamy model na tryb ewaluacji
             correct = 0
             total = 0
             with torch.no_grad():
-                for (cnn_inputs, _), (rnn_inputs, labels) in zip(cnn_loader, rnn_loader):
+                for (cnn_inputs, rnn_inputs), labels in tqdm(fusion_loader, desc="Validation"):
                     cnn_output = cnn_model(cnn_inputs)
                     rnn_output = rnn_model(rnn_inputs)
 
@@ -324,6 +346,8 @@ def main():
         for i in range(10):
             class_accuracy = 100 * class_correct[i] / class_total[i] if class_total[i] > 0 else 0
             print(f"Class {i}: {class_accuracy:.2f}%")
+
+
 
     def test_fusion_model(fusion_model, cnn_model, rnn_model, cnn_test_loader, rnn_test_loader, criterion):
         fusion_model.eval()  # Przełączamy model na tryb ewaluacji
