@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from torchvision import transforms, datasets
 from tqdm import tqdm
 import pandas as pd
@@ -133,6 +134,12 @@ class TemporalRNN(nn.Module):
 
         # Convert sequences and labels to tensors
         sequences = np.array(sequences)
+
+        scaler = StandardScaler()
+        sequences_reshaped = sequences.reshape(-1, sequences.shape[-1])
+        sequences_reshaped = scaler.fit_transform(sequences_reshaped)
+        sequences = sequences_reshaped.reshape(sequences.shape)
+
         sequences_tensor = torch.tensor(sequences, dtype=torch.float32)
         labels_tensor = torch.tensor(numeric_labels, dtype=torch.int64)
 
@@ -214,6 +221,7 @@ class FusionModel(nn.Module):
 
 def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=10):
     model.train()
+
     for epoch in range(num_epochs):
         running_loss = 0.0
         correct = 0
@@ -232,21 +240,6 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
 
         train_accuracy = 100 * correct / total
         print(f"Train Loss: {running_loss / len(train_loader):.4f}, Train Accuracy: {train_accuracy:.2f}%")
-
-        # Validation step
-        model.eval()
-        correct = 0
-        total = 0
-        with torch.no_grad():
-            for inputs, labels in tqdm(test_loader, desc="Validation"):
-                outputs = model(inputs)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-
-        val_accuracy = 100 * correct / total
-        print(f"Validation Accuracy: {val_accuracy:.2f}%")
-        model.train()  # Switch back to training mode after validation
 
 class FusionDataset(torch.utils.data.Dataset):
     def __init__(self, cnn_loader, rnn_loader):

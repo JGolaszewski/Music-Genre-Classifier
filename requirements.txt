@@ -8,3 +8,4 @@ audioread<=3.0.1
 pandas<=2.2.3
 matplotlib<=3.10.0
 soundfile<=0.13.1
+scikit-learn~=1.6.1
