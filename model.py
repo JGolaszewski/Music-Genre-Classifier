@@ -18,6 +18,7 @@ class SpectCNN(nn.Module):
         super(SpectCNN, self).__init__()
 
         # Warstwy konwolucyjne
+
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)  # Wejście 432x288x3, wyjście 432x288x32
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)  # Zmniejszy wymiary o połowę
 
@@ -27,6 +28,13 @@ class SpectCNN(nn.Module):
         # Warstwy w pełni połączone
         self.fc1 = nn.Linear(128 * 54 * 36, 512)  # Wymiary po konwolucjach i poolingach
         self.fc2 = nn.Linear(512, num_classes)
+
+        # Inicjalizacja wag
+        nn.init.xavier_normal_(self.conv1.weight)
+        nn.init.xavier_normal_(self.conv2.weight)
+        nn.init.xavier_normal_(self.conv3.weight)
+        nn.init.xavier_normal_(self.fc1.weight)
+        nn.init.xavier_normal_(self.fc2.weight)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))  # Przechodzi przez warstwę konwolucyjną + pooling
@@ -76,6 +84,8 @@ class TemporalRNN(nn.Module):
         self.fc = nn.Linear(hidden_size, rnn_output_size)
         self.dropout = nn.Dropout(0.5)
         self.bn = nn.BatchNorm1d(rnn_output_size)
+
+        nn.init.xavier_normal_(self.fc.weight)
 
         # Inicjalizacja wag
         for name, param in self.rnn.named_parameters():
