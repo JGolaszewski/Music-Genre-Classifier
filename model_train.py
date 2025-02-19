@@ -22,13 +22,16 @@ def main():
 
     # Trenowanie indywidualnych modeli
     train_model(cnn_model, cnn_model.train_loader, cnn_model.test_loader, criterion, optimizer_cnn, num_epochs=5)
-    train_model(rnn_model, rnn_model.train_loader, rnn_model.test_loader, criterion, optimizer_rnn, num_epochs=200)
+    # train_model(rnn_model, rnn_model.train_loader, rnn_model.test_loader, criterion, optimizer_rnn, num_epochs=200)
 
     # Testowanie indywidualnych modeli
     print("\nTesting CNN model\n")
-    # test_model(cnn_model, cnn_model.test_loader, criterion)
+    test_model(cnn_model, cnn_model.test_loader, criterion)
     print("\nTesting RNN model\n")
     test_model(rnn_model, rnn_model.test_loader, criterion)
+
+
+    return
 
     # Trenowanie modelu fusion
     train_fusion_model(fusion_model, cnn_model, rnn_model, cnn_model.train_loader, rnn_model.train_loader, criterion,

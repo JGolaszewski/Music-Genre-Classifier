@@ -18,24 +18,25 @@ class SpectCNN(nn.Module):
     def __init__(self, num_classes=10):
         super(SpectCNN, self).__init__()
 
-        # Warstwy konwolucyjne
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.pool = nn.MaxPool2d(2, 2)
 
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)  # Wejście 432x288x3, wyjście 432x288x32
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)  # Zmniejszy wymiary o połowę
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
 
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)  # Zmniejszy wymiar
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
 
-        # Warstwy w pełni połączone
-        self.fc1 = nn.Linear(128 * 54 * 36, 512)  # Wymiary po konwolucjach i poolingach
+        # Warstwy FC z Dropout
+        self.fc1 = nn.Linear(128 * 54 * 36, 512)
+        self.dropout = nn.Dropout(0.5)
         self.fc2 = nn.Linear(512, num_classes)
 
-        # Inicjalizacja wag
-        nn.init.xavier_normal_(self.conv1.weight)
-        nn.init.xavier_normal_(self.conv2.weight)
-        nn.init.xavier_normal_(self.conv3.weight)
-        nn.init.xavier_normal_(self.fc1.weight)
-        nn.init.xavier_normal_(self.fc2.weight)
+        # Inicjalizacja wag He (lepsza dla ReLU)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))  # Przechodzi przez warstwę konwolucyjną + pooling
@@ -44,6 +45,7 @@ class SpectCNN(nn.Module):
 
         x = x.view(-1, 128 * 54 * 36)  # Spłaszczenie przed warstwą FC
         x = F.relu(self.fc1(x))
+        x = self.dropout(x)
         x = self.fc2(x)
         return x
 
