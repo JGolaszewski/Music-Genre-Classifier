@@ -176,24 +176,25 @@ class FusionModel(nn.Module):
         def __init__(self, input_size=138, hidden_size=128, num_classes=10):
             super(FusionModel, self).__init__()
 
-            print(input_size, hidden_size, num_classes)
             self.fc1 = nn.Linear(input_size, hidden_size)
-            self.fc2 = nn.Linear(hidden_size, num_classes)
+            self.bn1 = nn.BatchNorm1d(hidden_size)
             self.dropout = nn.Dropout(0.3)
+            self.fc2 = nn.Linear(hidden_size, num_classes)
 
             for m in self.modules():
                 if isinstance(m, nn.Linear):
                     nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
-
         def forward(self, cnn_output, rnn_output):
             # Łączenie wyjść z obu modeli
-            fused_input = torch.cat((cnn_output, rnn_output), dim=1)  # dim=1 łączy po wymiarze cech
+            fused_input = torch.cat((cnn_output, rnn_output), dim=1)  # Konkatenacja po wymiarze cech
 
-            # Przetwarzanie przez w pełni połączone warstwy
-            x = F.relu(self.fc1(fused_input))
-            x = self.dropout(x)
-            x = self.fc2(x)
+            # Przejście przez warstwy w pełni połączone
+            x = self.fc1(fused_input)  # Linear(input_size, hidden_size)
+            x = self.bn1(x)  # BatchNorm1d(hidden_size)
+            x = F.relu(x)  # ReLU()
+            x = self.dropout(x)  # Dropout(0.3)
+            x = self.fc2(x)  # Linear(hidden_size, num_classes)
 
             return x
 
@@ -322,7 +323,7 @@ def train_fusion_model(self, cnn_model, rnn_model, cnn_loader, rnn_loader, crite
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        epoch_loss = running_loss / len(train_loader)
+        epoch_loss = running_loss / len(rnn_loader)
         epoch_accuracy = 100 * correct / total
 
         # Dodaj wyniki do list
@@ -456,6 +457,7 @@ def test_fusion_model(fusion_model, cnn_model, rnn_model, cnn_test_loader, rnn_t
     results = []
     for i in range(10):
         class_accuracy = 100 * class_correct[i] / class_total[i] if class_total[i] > 0 else 0
+        results.append({'Class': i, 'Accuracy': class_accuracy})
         print(f"Class {i}: {class_accuracy:.2f}%")
 
     results_df = pd.DataFrame(results)

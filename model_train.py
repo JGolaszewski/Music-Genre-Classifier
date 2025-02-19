@@ -21,34 +21,37 @@ def main():
     optimizer_fusion = torch.optim.SGD(filter(lambda p: p.requires_grad, fusion_model.parameters()), lr=0.001)
 
     # Trenowanie indywidualnych modeli
-    ### cnn_train_data = train_model(cnn_model, cnn_model.train_loader, cnn_model.test_loader, criterion, optimizer_cnn, num_epochs=10)
-    ### rnn_train_data = train_model(rnn_model, rnn_model.train_loader, rnn_model.test_loader, criterion, optimizer_rnn, num_epochs=200)
+    cnn_train_data = train_model(cnn_model, cnn_model.train_loader, cnn_model.test_loader, criterion, optimizer_cnn, num_epochs=30)
+    rnn_train_data = train_model(rnn_model, rnn_model.train_loader, rnn_model.test_loader, criterion, optimizer_rnn, num_epochs=400)
 
-    ### cnn_train_data.to_csv('data/result/cnn_train_data.csv')
-    ### rnn_train_data.to_csv('data/result/rnn_train_data.csv')
+    cnn_train_data.to_csv('data/result/cnn_train_data.csv')
+    rnn_train_data.to_csv('data/result/rnn_train_data.csv')
 
     # Testowanie indywidualnych modeli
     print("\nTesting CNN model\n")
-    ### cnn_test_data = test_model(cnn_model, cnn_model.test_loader, criterion)
+    cnn_test_data = test_model(cnn_model, cnn_model.test_loader, criterion)
     print("\nTesting RNN model\n")
-    ### rnn_test_data = test_model(rnn_model, rnn_model.test_loader, criterion)
+    rnn_test_data = test_model(rnn_model, rnn_model.test_loader, criterion)
 
-    ### cnn_test_data.to_csv('data/result/cnn_test_data.csv')
-    ### rnn_test_data.to_csv('data/result/rnn_test_data.csv')
+    cnn_test_data.to_csv('data/result/cnn_test_data.csv')
+    rnn_test_data.to_csv('data/result/rnn_test_data.csv')
 
-    ### torch.save(cnn_model.state_dict(), 'save/cnn_model_10.pth')
-    ### torch.save(rnn_model.state_dict(), 'save/rnn_model_200.pth')
+    torch.save(cnn_model.state_dict(), 'save/cnn_model_10.pth')
+    torch.save(rnn_model.state_dict(), 'save/rnn_model_200.pth')
 
-    cnn_model.load_state_dict(torch.load('save/cnn_model_10.pth'))
-    rnn_model.load_state_dict(torch.load('save/rnn_model_200.pth'))
+    ### cnn_model.load_state_dict(torch.load('save/cnn_model_10.pth'))
+    ### rnn_model.load_state_dict(torch.load('save/rnn_model_200.pth'))
 
     # Trenowanie modelu fusion
     fusion_train_data = train_fusion_model(fusion_model, cnn_model, rnn_model, cnn_model.train_loader, rnn_model.train_loader, criterion,
-                       optimizer_fusion, num_epochs=5)
+                       optimizer_fusion, num_epochs=30)
 
     # Testowanie modelu fusion
     print("\nTesting Fusion model\n")
     fusion_test_data = test_fusion_model(fusion_model, cnn_model, rnn_model, cnn_model.test_loader, rnn_model.test_loader, criterion)
+
+    torch.save(rnn_model.state_dict(), 'save/fusion_model_5.pth')
+
 
     fusion_train_data.to_csv('data/result/fusion_train_data.csv')
     fusion_test_data.to_csv('data/result/fusion_test_data.csv')
