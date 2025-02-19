@@ -181,6 +181,11 @@ class FusionModel(nn.Module):
             self.fc2 = nn.Linear(hidden_size, num_classes)
             self.dropout = nn.Dropout(0.3)
 
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+
+
         def forward(self, cnn_output, rnn_output):
             # Łączenie wyjść z obu modeli
             fused_input = torch.cat((cnn_output, rnn_output), dim=1)  # dim=1 łączy po wymiarze cech
@@ -224,6 +229,9 @@ class FusionModel(nn.Module):
 def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=10):
     model.train()
 
+    train_losses = []
+    train_accuracies = []
+
     for epoch in range(num_epochs):
         running_loss = 0.0
         correct = 0
@@ -240,8 +248,23 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        train_accuracy = 100 * correct / total
-        print(f"Train Loss: {running_loss / len(train_loader):.4f}, Train Accuracy: {train_accuracy:.2f}%")
+        # Oblicz średnią stratę i dokładność dla epoki
+        epoch_loss = running_loss / len(train_loader)
+        epoch_accuracy = 100 * correct / total
+
+        # Dodaj wyniki do list
+        train_losses.append(epoch_loss)
+        train_accuracies.append(epoch_accuracy)
+
+        print(f"Train Loss: {epoch_loss:.4f}, Train Accuracy: {epoch_accuracy:.2f}%")
+
+    results_df = pd.DataFrame({
+        'Epoch': range(1, num_epochs + 1),
+        'Train Loss': train_losses,
+        'Train Accuracy': train_accuracies
+    })
+
+    return results_df
 
 class FusionDataset(torch.utils.data.Dataset):
     def __init__(self, cnn_loader, rnn_loader):
@@ -271,6 +294,10 @@ def train_fusion_model(self, cnn_model, rnn_model, cnn_loader, rnn_loader, crite
     cnn_model.eval()  # Model CNN w trybie ewaluacji
     rnn_model.eval()  # Model RNN w trybie ewaluacji
 
+    train_losses = []
+    train_accuracies = []
+    validation_accuracies = []
+
     for epoch in range(num_epochs):
         running_loss = 0.0
         correct = 0
@@ -295,8 +322,14 @@ def train_fusion_model(self, cnn_model, rnn_model, cnn_loader, rnn_loader, crite
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        train_accuracy = 100 * correct / total
-        print(f"Train Loss: {running_loss / len(fusion_loader):.4f}, Train Accuracy: {train_accuracy:.2f}%")
+        epoch_loss = running_loss / len(train_loader)
+        epoch_accuracy = 100 * correct / total
+
+        # Dodaj wyniki do list
+        train_losses.append(epoch_loss)
+        train_accuracies.append(epoch_accuracy)
+
+        print(f"Train Loss: {epoch_loss:.4f}, Train Accuracy: {epoch_accuracy:.2f}%")
 
         # Kroki walidacyjne
         self.eval()  # Przełączamy model na tryb ewaluacji
@@ -313,11 +346,21 @@ def train_fusion_model(self, cnn_model, rnn_model, cnn_loader, rnn_loader, crite
                 correct += (predicted == labels).sum().item()
 
         val_accuracy = 100 * correct / total
+        validation_accuracies.append(val_accuracy)
         print(f"Validation Accuracy: {val_accuracy:.2f}%")
         self.train()  # Powrót do trybu treningowego po walidacji
 
+    results_df = pd.DataFrame({
+        'Epoch': range(1, num_epochs + 1),
+        'Train Loss': train_losses,
+        'Train Accuracy': train_accuracies,
+        'Validation Accuracy': validation_accuracies
+    })
+
     # Po zakończeniu treningu wykonaj ewaluację
     self.evaluate_model(cnn_model, rnn_model, cnn_loader, rnn_loader)
+
+    return results_df
 
 def test_model(model, test_loader, criterion):
     model.eval()  # Przełączamy model na tryb ewaluacji
@@ -357,9 +400,14 @@ def test_model(model, test_loader, criterion):
 
     # Wyświetlanie procentowych trafień dla każdego gatunku
     print("\nClass-wise accuracy:")
+    results = []
     for i in range(10):
         class_accuracy = 100 * class_correct[i] / class_total[i] if class_total[i] > 0 else 0
+        results.append({'Class': i, 'Accuracy': class_accuracy})
         print(f"Class {i}: {class_accuracy:.2f}%")
+
+    results_df = pd.DataFrame(results)
+    return results_df
 
 def test_fusion_model(fusion_model, cnn_model, rnn_model, cnn_test_loader, rnn_test_loader, criterion):
     fusion_model.eval()  # Przełączamy model na tryb ewaluacji
@@ -405,6 +453,10 @@ def test_fusion_model(fusion_model, cnn_model, rnn_model, cnn_test_loader, rnn_t
 
     # Wyświetlanie procentowych trafień dla każdego gatunku
     print("\nClass-wise accuracy:")
+    results = []
     for i in range(10):
         class_accuracy = 100 * class_correct[i] / class_total[i] if class_total[i] > 0 else 0
         print(f"Class {i}: {class_accuracy:.2f}%")
+
+    results_df = pd.DataFrame(results)
+    return results_df
