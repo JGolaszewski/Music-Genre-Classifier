@@ -2,3 +2,4 @@
 .venv
 data
 save
+__pycache__
